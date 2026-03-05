@@ -44,11 +44,11 @@ run: build
 
 install: build
 	@echo "[make] Installing $(TARGET) → $(INSTALL)/$(TARGET)"
-	install -m 755 $(TARGET) $(INSTALL)/$(TARGET)
+	sudo install -m 755 $(TARGET) $(INSTALL)/$(TARGET)
 	@echo "[make] Done — 'ytdown' available system-wide"
 
 uninstall:
-	rm -f $(INSTALL)/$(TARGET)
+	sudo rm -f $(INSTALL)/$(TARGET)
 	@echo "[make] Removed $(INSTALL)/$(TARGET)"
 
 clean:
