@@ -16,7 +16,6 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
-#include <array>
 #include <cstdlib>
 #include <string>
 #include <vector>
@@ -26,30 +25,40 @@ using namespace ftxui;
 int main() {
     auto screen = ScreenInteractive::TerminalOutput();
 
-    // --- State ---
     std::string url;
-    int res_selected = 1; // default 1080p
+    int res_selected  = 3; // default 1080p
+    int fmt_selected  = 0; // default mp4
 
     const std::vector<std::string> resolutions = {
         "4320p (8K)", "2160p (4K)", "1440p (2K)",
         "1080p (FHD)", "720p (HD)", "480p", "360p"
     };
-    const std::vector<int> res_values = {8320, 2160, 1440, 1080, 720, 480, 360};
+    const std::vector<int> res_values = { 8320, 2160, 1440, 1080, 720, 480, 360 };
+
+
+    struct FmtOption { std::string label; std::string ytdlp_fmt; bool audio_only; };
+    const std::vector<FmtOption> formats = {
+        { "mp4  (video)", "mp4",  false },
+        { "webm (video)", "webm", false },
+        { "mp3  (audio)", "mp3",  true  },
+        { "wav  (audio)", "wav",  true  },
+    };
 
     bool download_started = false;
-    bool exit_app = false;
+    bool exit_app         = false;
 
-    // --- Components ---
-    auto url_input = Input(&url, "https://www.youtube.com/watch?v=...");
+    auto url_input    = Input(&url, "https://www.youtube.com/watch?v=...");
+    auto res_menu     = Menu(&resolutions, &res_selected);
 
-    auto res_menu = Menu(&resolutions, &res_selected);
+    std::vector<std::string> fmt_labels;
+    for (auto& f : formats) fmt_labels.push_back(f.label);
+    auto fmt_menu = Menu(&fmt_labels, &fmt_selected);
 
     auto download_btn = Button("  ⬇  Download  ", [&] {
         if (url.empty()) return;
-        screen.ExitLoopClosure()();
         download_started = true;
+        screen.ExitLoopClosure()();
     });
-
     auto quit_btn = Button("  ✕  Quit  ", [&] {
         exit_app = true;
         screen.ExitLoopClosure()();
@@ -57,39 +66,44 @@ int main() {
 
     auto layout = Container::Vertical({
         url_input,
-        res_menu,
-        Container::Horizontal({download_btn, quit_btn}),
+        Container::Horizontal({ res_menu, fmt_menu }),
+        Container::Horizontal({ download_btn, quit_btn }),
     });
 
     auto renderer = Renderer(layout, [&] {
+        auto& sel_fmt = formats[fmt_selected];
+        std::string hint = sel_fmt.audio_only
+            ? "audio: " + sel_fmt.label
+            : resolutions[res_selected] + " · " + sel_fmt.label;
+
         return vbox({
-            // Header
             text("  yt-dlp TUI  ") | bold | color(Color::Yellow) | center,
             separator(),
 
-            // URL section
             text(" YouTube URL") | color(Color::Cyan),
-            hbox({text(" ❯ "), url_input->Render()}) | border,
-
+            hbox({ text(" ❯ "), url_input->Render() }) | border,
             separator(),
 
-            // Resolution section
-            text(" Resolution") | color(Color::Cyan),
-            res_menu->Render() | border | flex,
-
+            hbox({
+                vbox({
+                    text(" Resolution") | color(Color::Cyan),
+                    res_menu->Render() | border | flex,
+                }) | flex,
+                vbox({
+                    text(" Format") | color(Color::Cyan),
+                    fmt_menu->Render() | border,
+                }),
+            }),
             separator(),
 
-            // Buttons
             hbox({
                 download_btn->Render() | color(Color::Green),
                 text("  "),
                 quit_btn->Render() | color(Color::Red),
             }) | center,
-
             separator(),
 
-            // Footer hint
-            text(" Selected: " + resolutions[res_selected]) | dim | center,
+            text(" Selected: " + hint) | dim | center,
         }) | border;
     });
 
@@ -97,10 +111,20 @@ int main() {
 
     if (exit_app || !download_started) return 0;
 
-    // Build and execute yt-dlp command
-    int height = res_values[res_selected];
-    std::string fmt = "bv*[height<=" + std::to_string(height) + "]+ba/b[height<=" + std::to_string(height) + "]";
-    std::string cmd = "yt-dlp -f \"" + fmt + "\" --merge-output-format mp4 \"" + url + "\"";
+    // Build yt-dlp command
+    auto& sel_fmt = formats[fmt_selected];
+    std::string cmd;
+
+    if (sel_fmt.audio_only) {
+        // Extract best audio, convert to target format
+        cmd = "yt-dlp -x --audio-format " + sel_fmt.ytdlp_fmt
+            + " \"" + url + "\"";
+    } else {
+        int h = res_values[res_selected];
+        std::string f = "bv*[height<=" + std::to_string(h) + "]+ba/b[height<=" + std::to_string(h) + "]";
+        cmd = "yt-dlp -f \"" + f + "\" --merge-output-format " + sel_fmt.ytdlp_fmt
+            + " \"" + url + "\"";
+    }
 
     std::puts("\n\033[1;33m[ytdlp-tui]\033[0m Running:");
     std::puts(("  " + cmd).c_str());

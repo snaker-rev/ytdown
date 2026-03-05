@@ -1,7 +1,8 @@
 CXX      := g++
-CXXFLAGS := -std=c++20 -O2
-TARGET   := ytdlp
+CXXFLAGS := -std=c++20 -O2 -Wall -Wextra
+TARGET   := ytdown
 SRC      := ytdlp.cpp
+INSTALL  := /usr/local/bin
 
 FTXUI_DIR   := ftxui
 FTXUI_REPO  := https://github.com/ArthurSonzogni/FTXUI
@@ -12,28 +13,22 @@ INCLUDES := -I$(FTXUI_DIR)/include
 LIBS     := -L$(FTXUI_BUILD) \
             -lftxui-component -lftxui-dom -lftxui-screen
 
-.PHONY: all run clean
+.PHONY: all build run install uninstall clean
 
-# If binary exists, just run it. Otherwise build then run.
-all:
-	@if [ -f "./$(TARGET)" ]; then \
-		echo "[make] Binary already exists, running directly..."; \
-		./$(TARGET); \
-	else \
-		$(MAKE) build && ./$(TARGET); \
-	fi
+all: build
 
-build: $(FTXUI_BUILD)/libftxui-component.a $(SRC)
+
+build: $(FTXUI_BUILD)/libftxui-component.a $(SRC) Makefile
 	@echo "[make] Compiling $(TARGET)..."
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $(SRC) $(LIBS) -o $(TARGET)
 	@echo "[make] Done → ./$(TARGET)"
 
-# Clone FTXUI if missing
+
 $(FTXUI_DIR)/.git:
 	@echo "[make] Cloning FTXUI $(FTXUI_TAG)..."
 	git clone --depth 1 --branch $(FTXUI_TAG) $(FTXUI_REPO) $(FTXUI_DIR)
 
-# Build FTXUI static libs
+
 $(FTXUI_BUILD)/libftxui-component.a: $(FTXUI_DIR)/.git
 	@echo "[make] Building FTXUI..."
 	cmake -S $(FTXUI_DIR) -B $(FTXUI_BUILD) \
@@ -44,8 +39,17 @@ $(FTXUI_BUILD)/libftxui-component.a: $(FTXUI_DIR)/.git
 		> /dev/null
 	cmake --build $(FTXUI_BUILD) --parallel $$(nproc)
 
-run:
+run: build
 	@./$(TARGET)
+
+install: build
+	@echo "[make] Installing $(TARGET) → $(INSTALL)/$(TARGET)"
+	install -m 755 $(TARGET) $(INSTALL)/$(TARGET)
+	@echo "[make] Done — 'ytdown' available system-wide"
+
+uninstall:
+	rm -f $(INSTALL)/$(TARGET)
+	@echo "[make] Removed $(INSTALL)/$(TARGET)"
 
 clean:
 	@echo "[make] Cleaning..."
