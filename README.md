@@ -19,7 +19,7 @@ To build `ytdown`, you will need a C++20 compatible compiler (like g++ or clang+
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/amar/ytdown.git
+    git clone https://github.com/amark2005/ytdown.git
     cd ytdown
     ```
 
