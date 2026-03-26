@@ -2,7 +2,9 @@ CXX      := g++
 CXXFLAGS := -std=c++20 -O2 -Wall -Wextra
 TARGET   := ytdown
 SRC      := ytdlp.cpp
+DOCS     := docs.md
 INSTALL  := /usr/local/bin
+DOC_DIR  := /usr/local/share/doc/ytdown
 
 FTXUI_DIR   := ftxui
 FTXUI_REPO  := https://github.com/ArthurSonzogni/FTXUI
@@ -45,11 +47,14 @@ run: build
 install: build
 	@echo "[make] Installing $(TARGET) → $(INSTALL)/$(TARGET)"
 	sudo install -m 755 $(TARGET) $(INSTALL)/$(TARGET)
+	@echo "[make] Installing docs → $(DOC_DIR)/$(DOCS)"
+	sudo install -m 644 -D $(DOCS) $(DOC_DIR)/$(DOCS)
 	@echo "[make] Done — 'ytdown' available system-wide"
 
 uninstall:
 	sudo rm -f $(INSTALL)/$(TARGET)
-	@echo "[make] Removed $(INSTALL)/$(TARGET)"
+	sudo rm -rf $(DOC_DIR)
+	@echo "[make] Removed $(INSTALL)/$(TARGET) and $(DOC_DIR)"
 
 clean:
 	@echo "[make] Cleaning..."
